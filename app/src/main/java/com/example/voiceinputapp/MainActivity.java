@@ -4,8 +4,10 @@ import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Button;
@@ -18,6 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+
+import android.view.inputmethod.InputMethodManager;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
     private Button btnStop;
     private Button btnCopy;
     private Button btnClear;
+    private Button btnEnableIme;
+    private Button btnSwitchIme;
 
     private final PcmRecorder pcmRecorder = new PcmRecorder();
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -68,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
         btnStop = findViewById(R.id.btnStop);
         btnCopy = findViewById(R.id.btnCopy);
         btnClear = findViewById(R.id.btnClear);
+        btnEnableIme = findViewById(R.id.btnEnableIme);
+        btnSwitchIme = findViewById(R.id.btnSwitchIme);
 
         refreshButtons();
     }
@@ -77,6 +85,8 @@ public class MainActivity extends AppCompatActivity {
         btnStop.setOnClickListener(v -> stopVoiceInput());
         btnCopy.setOnClickListener(v -> copyText());
         btnClear.setOnClickListener(v -> clearText());
+        btnEnableIme.setOnClickListener(v -> openImeSettings());
+        btnSwitchIme.setOnClickListener(v -> showImePicker());
     }
 
     private void checkPermissionAndStart() {
@@ -203,6 +213,20 @@ public class MainActivity extends AppCompatActivity {
     private void clearText() {
         etResult.setText("");
         updateStatus(getString(R.string.status_cleared));
+    }
+
+    private void openImeSettings() {
+        startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS));
+        showToast(getString(R.string.toast_open_ime_settings));
+    }
+
+    private void showImePicker() {
+        InputMethodManager inputMethodManager =
+                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (inputMethodManager != null) {
+            inputMethodManager.showInputMethodPicker();
+            updateStatus(getString(R.string.status_ime_guide));
+        }
     }
 
     private void refreshButtons() {

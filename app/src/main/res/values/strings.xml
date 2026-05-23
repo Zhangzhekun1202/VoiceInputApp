@@ -6,12 +6,14 @@
     <string name="button_stop">结束录音并识别</string>
     <string name="button_copy">复制文本</string>
     <string name="button_clear">清空文本</string>
+    <string name="button_enable_ime">启用输入法</string>
+    <string name="button_switch_ime">切换输入法</string>
     <string name="hint_result">识别结果会显示在这里，可直接编辑</string>
     <string name="copy_label">语音识别文本</string>
 
     <string name="status_idle">准备就绪，点击“开始录音”开始识别</string>
     <string name="status_starting">正在启动录音…</string>
-    <string name="status_ready">录音器已准备，请开始说普通话</string>
+    <string name="status_ready">录音器已就绪，请开始说普通话</string>
     <string name="status_listening">正在录音，请开始说话…</string>
     <string name="status_processing">录音已结束，正在提交云识别…</string>
     <string name="status_result_ready">识别完成，可继续编辑或复制文本</string>
@@ -21,12 +23,20 @@
     <string name="status_no_result">没有获得识别结果，请重试</string>
     <string name="status_not_supported">当前设备不支持录音能力</string>
     <string name="status_permission_denied">未获得麦克风权限，无法开始录音</string>
-    <string name="status_config_missing">未配置百度云识别密钥，请先在 gradle.properties 中填写</string>
+    <string name="status_config_missing">未配置百度语音识别密钥，请先在 gradle.properties 中填写</string>
+    <string name="status_ime_guide">下一步：先授予麦克风权限，再启用这个输入法，然后在任意输入框中切换过来使用</string>
+    <string name="status_ime_idle">点击按钮开始语音输入</string>
+    <string name="status_ime_recording">正在录音，请说话…</string>
+    <string name="status_ime_processing">正在识别语音…</string>
+    <string name="status_ime_committed">已将识别结果输入到当前光标位置</string>
+    <string name="status_ime_no_editor">当前没有可输入的文本框</string>
 
     <string name="toast_permission_required">请允许麦克风权限后再试</string>
     <string name="toast_nothing_to_copy">当前没有可复制的文本</string>
     <string name="toast_copied">已复制到剪贴板</string>
     <string name="toast_not_supported">此设备暂不支持录音</string>
+    <string name="toast_open_ime_settings">请在系统设置中启用该输入法</string>
+    <string name="toast_grant_mic_for_ime">请先在 App 内授予麦克风权限，输入法服务本身无法弹出授权框</string>
 
     <string name="error_audio">录音出现问题，请重试</string>
     <string name="error_client">客户端状态异常，请重试</string>
@@ -37,5 +47,10 @@
     <string name="error_server">云识别服务暂时不可用</string>
     <string name="error_speech_timeout">录音内容过短或长时间没有语音输入</string>
     <string name="error_unknown">识别失败：%1$s</string>
-    <string name="error_missing_config">缺少百度云识别配置</string>
+    <string name="error_missing_config">缺少百度语音识别配置</string>
+
+    <string name="ime_name">语音输入法</string>
+    <string name="ime_subtype_zh_cn">普通话</string>
+    <string name="ime_action_start">开始语音输入</string>
+    <string name="ime_action_stop">结束并上屏</string>
 </resources>
