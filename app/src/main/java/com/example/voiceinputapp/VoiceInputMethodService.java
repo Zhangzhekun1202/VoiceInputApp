@@ -2,6 +2,7 @@ package com.example.voiceinputapp;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.inputmethodservice.InputMethodService;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,22 +17,19 @@ import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import android.inputmethodservice.InputMethodService;
-
 public class VoiceInputMethodService extends InputMethodService {
 
     private static final String TAG = "VoiceInputMethod";
 
     private final PcmRecorder pcmRecorder = new PcmRecorder();
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private TextView tvImeStatus;
     private Button btnImeToggle;
     private boolean isProcessing = false;
+    private boolean finalResultCommitted = false;
+    private String latestPartialText = "";
+    private BaiduRealtimeSpeechClient realtimeSpeechClient;
 
     @Override
     public View onCreateInputView() {
@@ -39,6 +37,7 @@ public class VoiceInputMethodService extends InputMethodService {
         tvImeStatus = view.findViewById(R.id.tvImeStatus);
         btnImeToggle = view.findViewById(R.id.btnImeToggle);
         btnImeToggle.setOnClickListener(v -> onToggleClicked());
+        updateIdleStatus();
         refreshUi();
         return view;
     }
@@ -46,6 +45,7 @@ public class VoiceInputMethodService extends InputMethodService {
     @Override
     public void onStartInputView(android.view.inputmethod.EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+        updateIdleStatus();
         refreshUi();
     }
 
@@ -55,15 +55,23 @@ public class VoiceInputMethodService extends InputMethodService {
         if (pcmRecorder.isRecording()) {
             pcmRecorder.stop();
         }
+        if (realtimeSpeechClient != null) {
+            realtimeSpeechClient.cancel();
+            realtimeSpeechClient = null;
+        }
         isProcessing = false;
+        updateIdleStatus();
         refreshUi();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (realtimeSpeechClient != null) {
+            realtimeSpeechClient.cancel();
+            realtimeSpeechClient = null;
+        }
         pcmRecorder.release();
-        executorService.shutdownNow();
     }
 
     private void onToggleClicked() {
@@ -86,14 +94,23 @@ public class VoiceInputMethodService extends InputMethodService {
 
     private void startRecording() {
         if (!hasRecordAudioPermission()) {
-            updateStatus(getString(R.string.status_permission_denied));
+            updateStatus(getString(R.string.status_ime_permission_missing));
             Toast.makeText(this, R.string.toast_grant_mic_for_ime, Toast.LENGTH_LONG).show();
             refreshUi();
             return;
         }
 
         try {
-            pcmRecorder.start();
+            finalResultCommitted = false;
+            latestPartialText = "";
+            realtimeSpeechClient = createRealtimeClient();
+            realtimeSpeechClient.connect();
+            pcmRecorder.startStreaming((chunk, length) -> {
+                BaiduRealtimeSpeechClient client = realtimeSpeechClient;
+                if (client != null && client.isReady()) {
+                    client.sendAudio(chunk, length);
+                }
+            });
             updateStatus(getString(R.string.status_ime_recording));
             refreshUi();
         } catch (Exception exception) {
@@ -114,46 +131,104 @@ public class VoiceInputMethodService extends InputMethodService {
 
         isProcessing = true;
         refreshUi();
-        executorService.execute(() -> recognizeAudio(audioBytes));
-    }
-
-    private void recognizeAudio(byte[] audioBytes) {
-        try {
-            BaiduSpeechClient speechClient = new BaiduSpeechClient(
-                    BuildConfig.BAIDU_API_KEY,
-                    BuildConfig.BAIDU_SECRET_KEY,
-                    getPackageName()
-            );
-            String result = speechClient.recognize(audioBytes, PcmRecorder.SAMPLE_RATE);
-            mainHandler.post(() -> handleRecognitionSuccess(result));
-        } catch (Exception exception) {
-            Log.e(TAG, "IME recognition failed", exception);
-            mainHandler.post(() -> handleRecognitionError(exception));
+        BaiduRealtimeSpeechClient client = realtimeSpeechClient;
+        if (client != null) {
+            client.finish();
+        } else {
+            isProcessing = false;
+            updateStatus(getString(R.string.error_client));
+            refreshUi();
         }
     }
 
-    private void handleRecognitionSuccess(String result) {
-        isProcessing = false;
-        if (TextUtils.isEmpty(result)) {
-            updateStatus(getString(R.string.status_no_result));
-            refreshUi();
+    private BaiduRealtimeSpeechClient createRealtimeClient() {
+        return new BaiduRealtimeSpeechClient(
+                BuildConfig.BAIDU_APP_ID,
+                BuildConfig.BAIDU_API_KEY,
+                getPackageName(),
+                new BaiduRealtimeSpeechClient.Listener() {
+                    @Override
+                    public void onReady() {
+                        Log.d(TAG, "Realtime ASR websocket ready");
+                    }
+
+                    @Override
+                    public void onPartialResult(String text) {
+                        mainHandler.post(() -> handlePartialResult(text));
+                    }
+
+                    @Override
+                    public void onFinalResult(String text) {
+                        mainHandler.post(() -> handleFinalResult(text));
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Log.e(TAG, "Realtime ASR error: " + message);
+                        mainHandler.post(() -> handleRecognitionError(new IllegalStateException(message)));
+                    }
+
+                    @Override
+                    public void onClosed() {
+                        mainHandler.post(() -> handleRealtimeClosed());
+                    }
+                }
+        );
+    }
+
+    private void handlePartialResult(String result) {
+        latestPartialText = result == null ? "" : result.trim();
+        if (TextUtils.isEmpty(latestPartialText)) {
             return;
         }
 
         InputConnection inputConnection = getCurrentInputConnection();
         if (inputConnection == null) {
             updateStatus(getString(R.string.status_ime_no_editor));
-            refreshUi();
             return;
         }
 
-        inputConnection.commitText(result, 1);
+        inputConnection.setComposingText(latestPartialText, 1);
+        updateStatus(getString(R.string.status_ime_streaming));
+    }
+
+    private void handleFinalResult(String result) {
+        String finalText = result == null ? "" : result.trim();
+        if (TextUtils.isEmpty(finalText)) {
+            return;
+        }
+
+        InputConnection inputConnection = getCurrentInputConnection();
+        if (inputConnection == null) {
+            updateStatus(getString(R.string.status_ime_no_editor));
+            return;
+        }
+
+        inputConnection.commitText(finalText, 1);
+        inputConnection.finishComposingText();
+        latestPartialText = "";
+        finalResultCommitted = true;
         updateStatus(getString(R.string.status_ime_committed));
+    }
+
+    private void handleRealtimeClosed() {
+        if (!isProcessing && !pcmRecorder.isRecording()) {
+            return;
+        }
+
+        isProcessing = false;
         refreshUi();
+        if (!finalResultCommitted && TextUtils.isEmpty(latestPartialText)) {
+            updateStatus(getString(R.string.status_no_result));
+        }
+        realtimeSpeechClient = null;
+        latestPartialText = "";
+        finalResultCommitted = false;
     }
 
     private void handleRecognitionError(Exception exception) {
         isProcessing = false;
+        realtimeSpeechClient = null;
 
         String message = exception.getMessage() == null ? "" : exception.getMessage().toLowerCase();
         if (message.contains("network") || message.contains("timeout")) {
@@ -181,8 +256,8 @@ public class VoiceInputMethodService extends InputMethodService {
         btnImeToggle.setEnabled(!isProcessing);
         btnImeToggle.setText(isRecording ? R.string.ime_action_stop : R.string.ime_action_start);
 
-        if (tvImeStatus != null && !isRecording && !isProcessing && TextUtils.isEmpty(tvImeStatus.getText())) {
-            tvImeStatus.setText(R.string.status_ime_idle);
+        if (!isRecording && !isProcessing) {
+            updateIdleStatus();
         }
     }
 
@@ -192,8 +267,24 @@ public class VoiceInputMethodService extends InputMethodService {
         }
     }
 
+    private void updateIdleStatus() {
+        if (tvImeStatus == null || pcmRecorder.isRecording() || isProcessing) {
+            return;
+        }
+
+        if (!hasBaiduConfig()) {
+            tvImeStatus.setText(R.string.status_config_missing);
+            return;
+        }
+        if (!hasRecordAudioPermission()) {
+            tvImeStatus.setText(R.string.status_ime_permission_missing);
+            return;
+        }
+        tvImeStatus.setText(R.string.status_ime_idle);
+    }
+
     private boolean hasBaiduConfig() {
-        return !BuildConfig.BAIDU_API_KEY.isEmpty() && !BuildConfig.BAIDU_SECRET_KEY.isEmpty();
+        return !BuildConfig.BAIDU_APP_ID.isEmpty() && !BuildConfig.BAIDU_API_KEY.isEmpty();
     }
 
     private boolean hasRecordAudioPermission() {

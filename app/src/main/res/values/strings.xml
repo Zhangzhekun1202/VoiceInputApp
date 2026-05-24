@@ -2,6 +2,7 @@
     <string name="app_name">VoiceInputApp</string>
     <string name="title_main">普通话语音输入助手</string>
     <string name="label_status">当前状态</string>
+    <string name="label_setup">启用检查</string>
     <string name="button_start">开始录音</string>
     <string name="button_stop">结束录音并识别</string>
     <string name="button_copy">复制文本</string>
@@ -27,9 +28,18 @@
     <string name="status_ime_guide">下一步：先授予麦克风权限，再启用这个输入法，然后在任意输入框中切换过来使用</string>
     <string name="status_ime_idle">点击按钮开始语音输入</string>
     <string name="status_ime_recording">正在录音，请说话…</string>
+    <string name="status_ime_streaming">正在实时识别，文字会逐步显示…</string>
     <string name="status_ime_processing">正在识别语音…</string>
     <string name="status_ime_committed">已将识别结果输入到当前光标位置</string>
     <string name="status_ime_no_editor">当前没有可输入的文本框</string>
+    <string name="status_ime_permission_missing">输入法缺少麦克风权限，请先回到 App 内授权</string>
+
+    <string name="setup_mic_granted">麦克风权限：已授予</string>
+    <string name="setup_mic_missing">麦克风权限：未授予，请先允许录音权限</string>
+    <string name="setup_ime_enabled">输入法启用状态：已启用</string>
+    <string name="setup_ime_disabled">输入法启用状态：未启用，请先到系统设置中打开</string>
+    <string name="setup_ime_selected">当前默认输入法：正在使用本输入法</string>
+    <string name="setup_ime_not_selected">当前默认输入法：尚未切换到本输入法</string>
 
     <string name="toast_permission_required">请允许麦克风权限后再试</string>
     <string name="toast_nothing_to_copy">当前没有可复制的文本</string>
