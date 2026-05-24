@@ -1,19 +1,14 @@
 package com.example.voiceinputapp;
 
 import android.Manifest;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,40 +17,23 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 public class MainActivity extends AppCompatActivity {
-
-    private static final String TAG = "VoiceInputApp";
 
     private TextView tvStatus;
     private TextView tvPermissionStatus;
     private TextView tvImeEnabledStatus;
     private TextView tvImeSelectedStatus;
-    private EditText etResult;
-    private Button btnStart;
-    private Button btnStop;
-    private Button btnCopy;
-    private Button btnClear;
-    private Button btnEnableIme;
+    private Button btnGrantMic;
     private Button btnSwitchIme;
-
-    private final PcmRecorder pcmRecorder = new PcmRecorder();
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private boolean isProcessing = false;
 
     private final ActivityResultLauncher<String> audioPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                refreshSetupStatus();
                 if (isGranted) {
-                    Log.d(TAG, "RECORD_AUDIO permission granted");
-                    refreshSetupStatus();
-                    startVoiceInput();
+                    updateStatus(getString(R.string.status_home_ready));
                 } else {
-                    Log.w(TAG, "Microphone permission denied by user");
                     updateStatus(getString(R.string.status_permission_denied));
                     showToast(getString(R.string.toast_permission_required));
-                    refreshSetupStatus();
                 }
             });
 
@@ -66,16 +44,15 @@ public class MainActivity extends AppCompatActivity {
 
         initViews();
         bindActions();
-        updateStatus(hasBaiduConfig()
-                ? getString(R.string.status_idle)
-                : getString(R.string.status_config_missing));
         refreshSetupStatus();
+        updateHomeStatus();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshSetupStatus();
+        updateHomeStatus();
     }
 
     private void initViews() {
@@ -83,142 +60,64 @@ public class MainActivity extends AppCompatActivity {
         tvPermissionStatus = findViewById(R.id.tvPermissionStatus);
         tvImeEnabledStatus = findViewById(R.id.tvImeEnabledStatus);
         tvImeSelectedStatus = findViewById(R.id.tvImeSelectedStatus);
-        etResult = findViewById(R.id.etResult);
-        btnStart = findViewById(R.id.btnStart);
-        btnStop = findViewById(R.id.btnStop);
-        btnCopy = findViewById(R.id.btnCopy);
-        btnClear = findViewById(R.id.btnClear);
-        btnEnableIme = findViewById(R.id.btnEnableIme);
+        btnGrantMic = findViewById(R.id.btnGrantMic);
         btnSwitchIme = findViewById(R.id.btnSwitchIme);
-
-        refreshButtons();
     }
 
     private void bindActions() {
-        btnStart.setOnClickListener(v -> checkPermissionAndStart());
-        btnStop.setOnClickListener(v -> stopVoiceInput());
-        btnCopy.setOnClickListener(v -> copyText());
-        btnClear.setOnClickListener(v -> clearText());
-        btnEnableIme.setOnClickListener(v -> openImeSettings());
-        btnSwitchIme.setOnClickListener(v -> showImePicker());
+        btnGrantMic.setOnClickListener(v -> requestMicPermission());
+        btnSwitchIme.setOnClickListener(v -> handleImeAction());
     }
 
-    private void checkPermissionAndStart() {
+    private void requestMicPermission() {
+        if (hasAudioPermission()) {
+            updateStatus(getString(R.string.status_home_ready));
+            showToast(getString(R.string.setup_mic_already_granted));
+            return;
+        }
+        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+    }
+
+    private void refreshSetupStatus() {
+        boolean hasPermission = hasAudioPermission();
+        boolean imeEnabled = isOurImeEnabled();
+        boolean imeSelected = isOurImeDefault();
+
+        tvPermissionStatus.setText(getString(
+                hasPermission ? R.string.setup_mic_granted : R.string.setup_mic_missing
+        ));
+        tvImeEnabledStatus.setText(getString(
+                imeEnabled ? R.string.setup_ime_enabled : R.string.setup_ime_disabled
+        ));
+        tvImeSelectedStatus.setText(getString(
+                imeSelected ? R.string.setup_ime_selected : R.string.setup_ime_not_selected
+        ));
+
+        btnGrantMic.setEnabled(!hasPermission);
+        btnSwitchIme.setEnabled(true);
+        btnSwitchIme.setText(getString(
+                imeEnabled ? R.string.button_switch_ime : R.string.button_enable_ime
+        ));
+    }
+
+    private void updateHomeStatus() {
         if (!hasBaiduConfig()) {
             updateStatus(getString(R.string.status_config_missing));
-            showToast(getString(R.string.error_missing_config));
             return;
         }
-
-        if (isProcessing) {
-            updateStatus(getString(R.string.error_busy));
+        if (!hasAudioPermission()) {
+            updateStatus(getString(R.string.status_home_need_permission));
             return;
         }
-
-        if (hasAudioPermission()) {
-            startVoiceInput();
-        } else {
-            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
-        }
-    }
-
-    private void startVoiceInput() {
-        try {
-            updateStatus(getString(R.string.status_starting));
-            pcmRecorder.start();
-            updateStatus(getString(R.string.status_listening));
-            refreshButtons();
-        } catch (Exception exception) {
-            Log.e(TAG, "Failed to start recorder", exception);
-            updateStatus(getString(R.string.status_not_supported));
-            showToast(getString(R.string.toast_not_supported));
-            refreshButtons();
-        }
-    }
-
-    private void stopVoiceInput() {
-        if (!pcmRecorder.isRecording()) {
-            updateStatus(getString(R.string.status_idle));
-            refreshButtons();
+        if (!isOurImeEnabled()) {
+            updateStatus(getString(R.string.status_home_enable_ime));
             return;
         }
-
-        updateStatus(getString(R.string.status_stopping));
-        byte[] audioBytes = pcmRecorder.stop();
-        refreshButtons();
-
-        if (audioBytes.length == 0) {
-            updateStatus(getString(R.string.error_audio));
+        if (!isOurImeDefault()) {
+            updateStatus(getString(R.string.status_home_switch_ime));
             return;
         }
-
-        isProcessing = true;
-        refreshButtons();
-        updateStatus(getString(R.string.status_processing));
-        executorService.execute(() -> recognizeAudio(audioBytes));
-    }
-
-    private void recognizeAudio(byte[] audioBytes) {
-        try {
-            BaiduSpeechClient speechClient = new BaiduSpeechClient(
-                    BuildConfig.BAIDU_API_KEY,
-                    BuildConfig.BAIDU_SECRET_KEY,
-                    getPackageName()
-            );
-            String result = speechClient.recognize(audioBytes, PcmRecorder.SAMPLE_RATE);
-            runOnUiThread(() -> handleRecognitionSuccess(result));
-        } catch (Exception exception) {
-            Log.e(TAG, "Baidu ASR request failed", exception);
-            runOnUiThread(() -> handleRecognitionError(exception));
-        }
-    }
-
-    private void handleRecognitionSuccess(String result) {
-        isProcessing = false;
-        refreshButtons();
-        if (TextUtils.isEmpty(result)) {
-            updateStatus(getString(R.string.status_no_result));
-            return;
-        }
-
-        etResult.setText(result);
-        etResult.setSelection(etResult.getText().length());
-        updateStatus(getString(R.string.status_result_ready));
-    }
-
-    private void handleRecognitionError(Exception exception) {
-        isProcessing = false;
-        refreshButtons();
-
-        String message = RecognitionError.messageOf(exception);
-        int statusRes = RecognitionErrorMapper.toStatusMessageRes(message);
-        if (statusRes != 0) {
-            updateStatus(getString(statusRes));
-        } else {
-            updateStatus(getString(R.string.error_unknown, message));
-        }
-    }
-
-    private void copyText() {
-        String text = etResult.getText().toString().trim();
-        if (TextUtils.isEmpty(text)) {
-            showToast(getString(R.string.toast_nothing_to_copy));
-            return;
-        }
-
-        ClipboardManager clipboardManager =
-                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboardManager != null) {
-            ClipData clipData = ClipData.newPlainText(getString(R.string.copy_label), text);
-            clipboardManager.setPrimaryClip(clipData);
-            updateStatus(getString(R.string.status_copied));
-            showToast(getString(R.string.toast_copied));
-        }
-    }
-
-    private void clearText() {
-        etResult.setText("");
-        updateStatus(getString(R.string.status_cleared));
+        updateStatus(getString(R.string.status_home_ready));
     }
 
     private void openImeSettings() {
@@ -226,31 +125,21 @@ public class MainActivity extends AppCompatActivity {
         showToast(getString(R.string.toast_open_ime_settings));
     }
 
+    private void handleImeAction() {
+        if (!isOurImeEnabled()) {
+            openImeSettings();
+            return;
+        }
+        showImePicker();
+    }
+
     private void showImePicker() {
         InputMethodManager inputMethodManager =
-                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (inputMethodManager != null) {
             inputMethodManager.showInputMethodPicker();
             updateStatus(getString(R.string.status_ime_guide));
         }
-    }
-
-    private void refreshButtons() {
-        boolean isRecording = pcmRecorder.isRecording();
-        btnStart.setEnabled(!isRecording && !isProcessing);
-        btnStop.setEnabled(isRecording);
-    }
-
-    private void refreshSetupStatus() {
-        tvPermissionStatus.setText(getString(
-                hasAudioPermission() ? R.string.setup_mic_granted : R.string.setup_mic_missing
-        ));
-        tvImeEnabledStatus.setText(getString(
-                isOurImeEnabled() ? R.string.setup_ime_enabled : R.string.setup_ime_disabled
-        ));
-        tvImeSelectedStatus.setText(getString(
-                isOurImeDefault() ? R.string.setup_ime_selected : R.string.setup_ime_not_selected
-        ));
     }
 
     private boolean hasAudioPermission() {
@@ -307,12 +196,5 @@ public class MainActivity extends AppCompatActivity {
 
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        pcmRecorder.release();
-        executorService.shutdownNow();
     }
 }

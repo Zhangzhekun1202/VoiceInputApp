@@ -24,7 +24,7 @@ public class VoiceInputMethodService extends InputMethodService {
     private static final String TAG = "VoiceInputMethod";
     private static final long MIN_RECORDING_DURATION_MS = 500L;
     private static final long INITIAL_SILENCE_TIMEOUT_MS = 3000L;
-    private static final long POST_SPEECH_SILENCE_TIMEOUT_MS = 7000L;
+    private static final long POST_SPEECH_SILENCE_TIMEOUT_MS = 5000L;
     private static final long MAX_RECORDING_DURATION_MS = 60000L;
     private static final long FINISH_TIMEOUT_MS = 4000L;
 
