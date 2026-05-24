@@ -1,31 +1,31 @@
 <resources>
     <string name="app_name">VoiceInputApp</string>
     <string name="title_main">语音输入法助手</string>
-
     <string name="label_status">当前状态</string>
 
     <string name="button_grant_mic">授予麦克风权限</string>
     <string name="button_enable_ime">启用输入法</string>
     <string name="button_switch_ime">切换到本输入法</string>
 
-    <string name="status_config_missing">未检测到百度语音识别配置，请先在 gradle.properties 中补全</string>
-    <string name="status_home_need_permission">先授予麦克风权限，输入法才能开始语音输入</string>
-    <string name="status_home_enable_ime">请先在系统设置中启用这个输入法</string>
-    <string name="status_home_switch_ime">还差最后一步：把当前输入法切换成这个语音输入法</string>
-    <string name="status_home_ready">已准备就绪。打开任意输入框并切换到本输入法后，按住即可说话</string>
-    <string name="status_no_result">没有获得识别结果，请重试</string>
-    <string name="status_not_supported">当前设备不支持录音能力</string>
-    <string name="status_permission_denied">未获得麦克风权限，无法开始录音</string>
+    <string name="status_config_missing">未检测到百度语音识别配置，请先在 gradle.properties 中补全。</string>
+    <string name="status_home_need_permission">请先授予麦克风权限，输入法才能开始语音输入。</string>
+    <string name="status_home_enable_ime">请先在系统设置中启用这个输入法。</string>
+    <string name="status_home_switch_ime">还差最后一步：把当前输入法切换成这个语音输入法。</string>
+    <string name="status_home_ready">已经准备就绪。打开任意输入框并切换到本输入法后，按住即可说话。</string>
+    <string name="status_no_result">没有获得识别结果，请重试。</string>
+    <string name="status_not_supported">当前设备不支持录音能力。</string>
+    <string name="status_permission_denied">未获得麦克风权限，无法开始录音。</string>
 
-    <string name="status_ime_guide">接下来请在任意输入框中打开输入法选择面板，并切换到本输入法</string>
-    <string name="status_ime_idle">按住按钮开始语音输入，松手后结束识别</string>
-    <string name="status_ime_hold_to_talk">继续长按即可开始录音</string>
+    <string name="status_ime_guide">请在任意输入框中打开输入法选择面板，并切换到本输入法。</string>
+    <string name="status_ime_idle">按住按钮开始语音输入，松手后结束识别。</string>
+    <string name="status_ime_hold_to_talk">继续长按即可开始录音。</string>
     <string name="status_ime_recording">正在录音，请说话…</string>
     <string name="status_ime_streaming">正在实时识别，文字会逐步显示…</string>
     <string name="status_ime_processing">正在识别语音…</string>
-    <string name="status_ime_committed">已将识别结果输入到当前光标位置</string>
-    <string name="status_ime_no_editor">当前没有可输入的文本框</string>
-    <string name="status_ime_permission_missing">输入法缺少麦克风权限，请先回到 App 内授权</string>
+    <string name="status_ime_committed">已将识别结果输入到当前光标位置。</string>
+    <string name="status_ime_finish_recording_first">请先松手结束当前录音，再进入键盘编辑。</string>
+    <string name="status_ime_no_editor">当前没有可输入的文本框。</string>
+    <string name="status_ime_permission_missing">输入法缺少麦克风权限，请先回到 App 内授权。</string>
 
     <string name="setup_mic_granted">麦克风权限：已授权</string>
     <string name="setup_mic_missing">麦克风权限：未授权，请先允许录音权限</string>
@@ -35,24 +35,34 @@
     <string name="setup_ime_selected">当前默认输入法：正在使用本输入法</string>
     <string name="setup_ime_not_selected">当前默认输入法：尚未切换到本输入法</string>
 
-    <string name="toast_permission_required">请允许麦克风权限后再试</string>
-    <string name="toast_open_ime_settings">请在系统输入法设置中启用本输入法</string>
-    <string name="toast_grant_mic_for_ime">请先在 App 内授予麦克风权限，输入法服务本身无法直接弹出授权框</string>
+    <string name="toast_permission_required">请允许麦克风权限后再试。</string>
+    <string name="toast_open_ime_settings">请在系统输入法设置中启用本输入法。</string>
+    <string name="toast_grant_mic_for_ime">请先在 App 内授予麦克风权限，输入法服务本身无法直接弹出授权框。</string>
 
-    <string name="error_audio">录音出现问题，请重试</string>
-    <string name="error_busy">当前正在处理上一段录音，请稍后再试</string>
-    <string name="error_client">客户端状态异常，请重试</string>
-    <string name="error_network">网络错误，请检查网络后重试</string>
+    <string name="error_audio">录音出现问题，请重试。</string>
+    <string name="error_busy">当前正在处理上一段录音，请稍后再试。</string>
+    <string name="error_client">客户端状态异常，请重试。</string>
+    <string name="error_network">网络错误，请检查网络后重试。</string>
     <string name="error_no_voice_detected">未检测到声音</string>
-    <string name="error_recording_too_short">录音太短，请按住按钮后再说话</string>
-    <string name="error_recording_max_duration">录音已达到 60 秒上限，已自动结束</string>
-    <string name="error_speech_timeout">长时间没有继续说话，本次录音已结束</string>
+    <string name="error_recording_too_short">录音太短，请按住按钮后再说话。</string>
+    <string name="error_recording_max_duration">录音已达到 60 秒上限，已自动结束。</string>
+    <string name="error_speech_timeout">长时间没有继续说话，本次录音已结束。</string>
     <string name="error_unknown">识别失败：%1$s</string>
 
     <string name="ime_name">语音输入法</string>
     <string name="ime_subtype_zh_cn">普通话</string>
     <string name="ime_action_hold">按住说话</string>
     <string name="ime_action_recording">松手结束</string>
+    <string name="ime_action_edit">键盘编辑</string>
+    <string name="ime_action_voice">返回语音</string>
+    <string name="ime_action_backspace">退格</string>
+    <string name="ime_action_space">空格</string>
+    <string name="ime_action_enter">回车</string>
+    <string name="ime_pinyin_placeholder">输入拼音后，点候选上屏</string>
+    <string name="ime_pinyin_buffer">拼音：%1$s</string>
+    <string name="ime_candidate_prev">◁</string>
+    <string name="ime_candidate_next">▷</string>
+    <string name="ime_candidate_item">%1$d. %2$s</string>
 
     <string name="home_steps_title">开始使用前，只需要三步</string>
     <string name="home_step_permission">1. 授予麦克风权限，让输入法可以正常录音</string>

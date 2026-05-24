@@ -13,4 +13,8 @@
     <color name="hero_start">#1E4FD6</color>
     <color name="hero_end">#4EA3FF</color>
     <color name="home_hint">#DCE9FF</color>
+    <color name="ime_buffer_bg">#F4F7FD</color>
+    <color name="ime_buffer_stroke">#D7E3F8</color>
+    <color name="ime_candidate_bg">#F8FAFD</color>
+    <color name="ime_candidate_stroke">#E1E8F4</color>
 </resources>
