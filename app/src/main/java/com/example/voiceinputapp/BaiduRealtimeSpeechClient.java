@@ -154,7 +154,6 @@ public class BaiduRealtimeSpeechClient {
         @Override
         public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
             ready = false;
-            webSocket.close(code, reason);
         }
 
         @Override

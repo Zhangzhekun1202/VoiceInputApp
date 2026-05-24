@@ -190,19 +190,12 @@ public class MainActivity extends AppCompatActivity {
         isProcessing = false;
         refreshButtons();
 
-        String message = exception.getMessage() == null ? "" : exception.getMessage().toLowerCase();
-        if (message.contains("network") || message.contains("timeout")) {
-            updateStatus(getString(R.string.error_network));
-        } else if (message.contains("speech quality error")
-                || message.contains("empty audio")
-                || message.contains("too short")) {
-            updateStatus(getString(R.string.error_no_match));
-        } else if (message.contains("access_token")
-                || message.contains("api key")
-                || message.contains("secret")) {
-            updateStatus(getString(R.string.status_config_missing));
+        String message = RecognitionError.messageOf(exception);
+        int statusRes = RecognitionErrorMapper.toStatusMessageRes(message);
+        if (statusRes != 0) {
+            updateStatus(getString(statusRes));
         } else {
-            updateStatus(getString(R.string.error_unknown, exception.getMessage()));
+            updateStatus(getString(R.string.error_unknown, message));
         }
     }
 

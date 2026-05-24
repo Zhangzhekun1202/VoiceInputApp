@@ -3,6 +3,7 @@ package com.example.voiceinputapp;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.SystemClock;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
@@ -11,25 +12,53 @@ public class PcmRecorder {
 
     public static final int SAMPLE_RATE = 16000;
     public static final int STREAM_FRAME_BYTES = 5120;
+    private static final int BYTES_PER_SAMPLE = 2;
+    private static final int CHANNEL_COUNT = 1;
+    private static final int SPEECH_AMPLITUDE_THRESHOLD = 900;
 
     public interface AudioChunkListener {
-        void onAudioChunk(byte[] chunk, int length);
+        void onAudioChunk(byte[] chunk, int length, boolean hasSpeech);
     }
 
     private AudioRecord audioRecord;
     private Thread recordThread;
     private volatile boolean recording;
     private ByteArrayOutputStream audioBuffer;
+    private long recordingStartedAtMs;
+    private long recordedBytes;
+    private volatile long firstSpeechAtMs;
+    private volatile long lastSpeechAtMs;
 
-    public boolean isRecording() {
+    public synchronized boolean isRecording() {
         return recording;
     }
 
-    public void start() {
+    public long getRecordingDurationMs() {
+        long bytes = recordedBytes;
+        long bytesPerSecond = (long) SAMPLE_RATE * BYTES_PER_SAMPLE * CHANNEL_COUNT;
+        if (bytesPerSecond <= 0) {
+            return 0L;
+        }
+        return bytes * 1000L / bytesPerSecond;
+    }
+
+    public boolean hasDetectedSpeech() {
+        return firstSpeechAtMs > 0L;
+    }
+
+    public long getFirstSpeechAtMs() {
+        return firstSpeechAtMs;
+    }
+
+    public long getLastSpeechAtMs() {
+        return lastSpeechAtMs;
+    }
+
+    public synchronized void start() {
         startInternal(null);
     }
 
-    public void startStreaming(AudioChunkListener listener) {
+    public synchronized void startStreaming(AudioChunkListener listener) {
         startInternal(listener);
     }
 
@@ -60,6 +89,10 @@ public class PcmRecorder {
         }
 
         audioBuffer = new ByteArrayOutputStream();
+        recordedBytes = 0L;
+        firstSpeechAtMs = 0L;
+        lastSpeechAtMs = 0L;
+        recordingStartedAtMs = SystemClock.elapsedRealtime();
         recording = true;
         audioRecord.startRecording();
 
@@ -70,12 +103,21 @@ public class PcmRecorder {
                 int read = audioRecord.read(chunk, 0, chunk.length);
                 if (read > 0) {
                     audioBuffer.write(chunk, 0, read);
+                    recordedBytes += read;
+                    boolean hasSpeech = containsSpeech(chunk, read);
+                    if (hasSpeech) {
+                        long now = SystemClock.elapsedRealtime();
+                        if (firstSpeechAtMs == 0L) {
+                            firstSpeechAtMs = now;
+                        }
+                        lastSpeechAtMs = now;
+                    }
                     if (listener != null) {
                         streamingBuffer.write(chunk, 0, read);
                         while (streamingBuffer.size() >= STREAM_FRAME_BYTES) {
                             byte[] full = streamingBuffer.toByteArray();
                             byte[] frame = Arrays.copyOfRange(full, 0, STREAM_FRAME_BYTES);
-                            listener.onAudioChunk(frame, frame.length);
+                            listener.onAudioChunk(frame, frame.length, containsSpeech(frame, frame.length));
 
                             streamingBuffer.reset();
                             if (full.length > STREAM_FRAME_BYTES) {
@@ -88,13 +130,13 @@ public class PcmRecorder {
 
             if (listener != null && streamingBuffer != null && streamingBuffer.size() > 0) {
                 byte[] tail = streamingBuffer.toByteArray();
-                listener.onAudioChunk(tail, tail.length);
+                listener.onAudioChunk(tail, tail.length, containsSpeech(tail, tail.length));
             }
         }, "pcm-recorder");
         recordThread.start();
     }
 
-    public byte[] stop() {
+    public synchronized byte[] stop() {
         if (!recording) {
             return new byte[0];
         }
@@ -120,8 +162,11 @@ public class PcmRecorder {
         return audio;
     }
 
-    public void release() {
-        recording = false;
+    public synchronized void release() {
+        if (recording) {
+            stop();
+            return;
+        }
         releaseInternal();
     }
 
@@ -132,5 +177,16 @@ public class PcmRecorder {
         }
         recordThread = null;
         audioBuffer = null;
+        recordingStartedAtMs = 0L;
+    }
+
+    private boolean containsSpeech(byte[] buffer, int length) {
+        for (int index = 0; index + 1 < length; index += 2) {
+            int sample = (buffer[index] & 0xFF) | (buffer[index + 1] << 8);
+            if (Math.abs((short) sample) >= SPEECH_AMPLITUDE_THRESHOLD) {
+                return true;
+            }
+        }
+        return false;
     }
 }
