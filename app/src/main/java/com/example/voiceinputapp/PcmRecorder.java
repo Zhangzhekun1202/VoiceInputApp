@@ -5,10 +5,16 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 
 public class PcmRecorder {
 
     public static final int SAMPLE_RATE = 16000;
+    public static final int STREAM_FRAME_BYTES = 5120;
+
+    public interface AudioChunkListener {
+        void onAudioChunk(byte[] chunk, int length);
+    }
 
     private AudioRecord audioRecord;
     private Thread recordThread;
@@ -20,6 +26,14 @@ public class PcmRecorder {
     }
 
     public void start() {
+        startInternal(null);
+    }
+
+    public void startStreaming(AudioChunkListener listener) {
+        startInternal(listener);
+    }
+
+    private void startInternal(AudioChunkListener listener) {
         if (recording) {
             throw new IllegalStateException("Recorder is already running");
         }
@@ -51,11 +65,30 @@ public class PcmRecorder {
 
         recordThread = new Thread(() -> {
             byte[] chunk = new byte[minBufferSize];
+            ByteArrayOutputStream streamingBuffer = listener == null ? null : new ByteArrayOutputStream();
             while (recording && audioRecord != null) {
                 int read = audioRecord.read(chunk, 0, chunk.length);
                 if (read > 0) {
                     audioBuffer.write(chunk, 0, read);
+                    if (listener != null) {
+                        streamingBuffer.write(chunk, 0, read);
+                        while (streamingBuffer.size() >= STREAM_FRAME_BYTES) {
+                            byte[] full = streamingBuffer.toByteArray();
+                            byte[] frame = Arrays.copyOfRange(full, 0, STREAM_FRAME_BYTES);
+                            listener.onAudioChunk(frame, frame.length);
+
+                            streamingBuffer.reset();
+                            if (full.length > STREAM_FRAME_BYTES) {
+                                streamingBuffer.write(full, STREAM_FRAME_BYTES, full.length - STREAM_FRAME_BYTES);
+                            }
+                        }
+                    }
                 }
+            }
+
+            if (listener != null && streamingBuffer != null && streamingBuffer.size() > 0) {
+                byte[] tail = streamingBuffer.toByteArray();
+                listener.onAudioChunk(tail, tail.length);
             }
         }, "pcm-recorder");
         recordThread.start();

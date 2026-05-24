@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+def baiduAppId = providers.gradleProperty("BAIDU_APP_ID").orElse("").get()
 def baiduApiKey = providers.gradleProperty("BAIDU_API_KEY").orElse("").get()
 def baiduSecretKey = providers.gradleProperty("BAIDU_SECRET_KEY").orElse("").get()
 
@@ -19,6 +20,7 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0"
+        buildConfigField "String", "BAIDU_APP_ID", "\"${baiduAppId}\""
         buildConfigField "String", "BAIDU_API_KEY", "\"${baiduApiKey}\""
         buildConfigField "String", "BAIDU_SECRET_KEY", "\"${baiduSecretKey}\""
 
@@ -45,6 +47,7 @@ dependencies {
     implementation libs.appcompat
     implementation libs.constraintlayout
     implementation libs.material
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
     testImplementation libs.junit
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit

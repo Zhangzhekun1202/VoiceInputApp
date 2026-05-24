@@ -3,6 +3,7 @@ package com.example.voiceinputapp;
 import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,6 +11,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -17,11 +19,8 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-
-import android.view.inputmethod.InputMethodManager;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,6 +30,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "VoiceInputApp";
 
     private TextView tvStatus;
+    private TextView tvPermissionStatus;
+    private TextView tvImeEnabledStatus;
+    private TextView tvImeSelectedStatus;
     private EditText etResult;
     private Button btnStart;
     private Button btnStop;
@@ -47,11 +49,13 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) {
                     Log.d(TAG, "RECORD_AUDIO permission granted");
+                    refreshSetupStatus();
                     startVoiceInput();
                 } else {
                     Log.w(TAG, "Microphone permission denied by user");
                     updateStatus(getString(R.string.status_permission_denied));
                     showToast(getString(R.string.toast_permission_required));
+                    refreshSetupStatus();
                 }
             });
 
@@ -65,10 +69,20 @@ public class MainActivity extends AppCompatActivity {
         updateStatus(hasBaiduConfig()
                 ? getString(R.string.status_idle)
                 : getString(R.string.status_config_missing));
+        refreshSetupStatus();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshSetupStatus();
     }
 
     private void initViews() {
         tvStatus = findViewById(R.id.tvStatus);
+        tvPermissionStatus = findViewById(R.id.tvPermissionStatus);
+        tvImeEnabledStatus = findViewById(R.id.tvImeEnabledStatus);
+        tvImeSelectedStatus = findViewById(R.id.tvImeSelectedStatus);
         etResult = findViewById(R.id.etResult);
         btnStart = findViewById(R.id.btnStart);
         btnStop = findViewById(R.id.btnStop);
@@ -101,8 +115,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (hasAudioPermission()) {
             startVoiceInput();
         } else {
             audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
@@ -233,6 +246,62 @@ public class MainActivity extends AppCompatActivity {
         boolean isRecording = pcmRecorder.isRecording();
         btnStart.setEnabled(!isRecording && !isProcessing);
         btnStop.setEnabled(isRecording);
+    }
+
+    private void refreshSetupStatus() {
+        tvPermissionStatus.setText(getString(
+                hasAudioPermission() ? R.string.setup_mic_granted : R.string.setup_mic_missing
+        ));
+        tvImeEnabledStatus.setText(getString(
+                isOurImeEnabled() ? R.string.setup_ime_enabled : R.string.setup_ime_disabled
+        ));
+        tvImeSelectedStatus.setText(getString(
+                isOurImeDefault() ? R.string.setup_ime_selected : R.string.setup_ime_not_selected
+        ));
+    }
+
+    private boolean hasAudioPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean isOurImeEnabled() {
+        String enabledImeIds = Settings.Secure.getString(
+                getContentResolver(),
+                Settings.Secure.ENABLED_INPUT_METHODS
+        );
+        if (TextUtils.isEmpty(enabledImeIds)) {
+            return false;
+        }
+
+        String imeIdLong = getImeIdLong();
+        String imeIdShort = getImeIdShort();
+        String[] enabledItems = enabledImeIds.split(":");
+        for (String item : enabledItems) {
+            if (imeIdLong.equals(item) || imeIdShort.equals(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isOurImeDefault() {
+        String defaultImeId = Settings.Secure.getString(
+                getContentResolver(),
+                Settings.Secure.DEFAULT_INPUT_METHOD
+        );
+        if (TextUtils.isEmpty(defaultImeId)) {
+            return false;
+        }
+        return defaultImeId.equals(getImeIdLong()) || defaultImeId.equals(getImeIdShort());
+    }
+
+    private String getImeIdLong() {
+        return new ComponentName(this, VoiceInputMethodService.class).flattenToString();
+    }
+
+    private String getImeIdShort() {
+        return new ComponentName(this, VoiceInputMethodService.class).flattenToShortString();
     }
 
     private boolean hasBaiduConfig() {
