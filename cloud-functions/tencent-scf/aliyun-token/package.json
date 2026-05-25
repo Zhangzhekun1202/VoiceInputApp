@@ -1,0 +1,13 @@
+{
+  "name": "aliyun-token-scf",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tencent Cloud Function for issuing Aliyun speech tokens",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}

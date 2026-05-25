@@ -101,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateHomeStatus() {
-        if (!hasBaiduConfig()) {
+        if (!hasSpeechConfig()) {
             updateStatus(getString(R.string.status_config_missing));
             return;
         }
@@ -186,8 +186,9 @@ public class MainActivity extends AppCompatActivity {
         return new ComponentName(this, VoiceInputMethodService.class).flattenToShortString();
     }
 
-    private boolean hasBaiduConfig() {
-        return !BuildConfig.BAIDU_API_KEY.isEmpty() && !BuildConfig.BAIDU_SECRET_KEY.isEmpty();
+    private boolean hasSpeechConfig() {
+        return !BuildConfig.ALIYUN_APP_KEY.isEmpty()
+                && !BuildConfig.ALIYUN_TOKEN_ENDPOINT.isEmpty();
     }
 
     private void updateStatus(String status) {

@@ -111,7 +111,7 @@ public class VoiceInputMethodService extends InputMethodService {
     private boolean preserveIdleStatusMessage;
     private String latestPartialText = "";
     private StopReason lastStopReason = StopReason.RELEASED;
-    private BaiduRealtimeSpeechClient realtimeSpeechClient;
+    private SpeechRecognitionClient realtimeSpeechClient;
 
     @Override
     public View onCreateInputView() {
@@ -192,7 +192,7 @@ public class VoiceInputMethodService extends InputMethodService {
             Log.w(TAG, "Recorder still active while state is IDLE; forcing cleanup before new press");
             abortSession("stale recorder on action down");
         }
-        if (!hasBaiduConfig()) {
+        if (!hasSpeechConfig()) {
             updateStatus(getString(R.string.status_config_missing));
             return true;
         }
@@ -277,15 +277,17 @@ public class VoiceInputMethodService extends InputMethodService {
             lastStopReason = StopReason.RELEASED;
             realtimeSpeechClient = createRealtimeClient();
             realtimeSpeechClient.connect();
-            pcmRecorder.startStreaming((chunk, length, hasSpeech) -> {
-                BaiduRealtimeSpeechClient client = realtimeSpeechClient;
-                if (client != null && client.isReady()) {
-                    client.sendAudio(chunk, length);
-                }
-                if (state == SessionState.RECORDING && pointerDown && hasSpeech) {
-                    onSpeechDetected();
-                }
-            });
+            if (realtimeSpeechClient.usesExternalAudioInput()) {
+                pcmRecorder.startStreaming((chunk, length, hasSpeech) -> {
+                    SpeechRecognitionClient client = realtimeSpeechClient;
+                    if (client != null && client.isReady()) {
+                        client.sendAudio(chunk, length);
+                    }
+                    if (state == SessionState.RECORDING && pointerDown && hasSpeech) {
+                        onSpeechDetected();
+                    }
+                });
+            }
 
             transitionTo(SessionState.RECORDING, "long press confirmed");
             scheduleInitialSilenceTimeout();
@@ -312,36 +314,42 @@ public class VoiceInputMethodService extends InputMethodService {
         clearRecordingTimeouts();
         btnImeToggle.setPressed(false);
 
-        byte[] audioBytes = pcmRecorder.stop();
-        long durationMs = pcmRecorder.getRecordingDurationMs();
-        boolean hasSpeech = pcmRecorder.hasDetectedSpeech();
-        boolean hadSpeechInSession = speechDetectedInSession || hasSpeech;
-        if (audioBytes.length == 0) {
-            cleanupRecognitionSession(true);
-            transitionTo(SessionState.IDLE, "empty audio");
-            updateStatus(getString(R.string.error_audio));
-            preserveIdleStatusMessage = true;
-            refreshUi();
-            return;
-        }
-        if (durationMs < MIN_RECORDING_DURATION_MS || !hasSpeech) {
-            cleanupRecognitionSession(true);
-            transitionTo(SessionState.IDLE, "audio too short or no speech");
-            if (reason == StopReason.SILENCE_TIMEOUT) {
-                updateStatus(getString(
-                        hadSpeechInSession
-                                ? R.string.error_speech_timeout
-                                : R.string.error_no_voice_detected
-                ));
-            } else {
-                updateStatus(getString(R.string.error_recording_too_short));
+        if (realtimeSpeechClient != null && realtimeSpeechClient.usesExternalAudioInput()) {
+            byte[] audioBytes = pcmRecorder.stop();
+            long durationMs = pcmRecorder.getRecordingDurationMs();
+            boolean hasSpeech = pcmRecorder.hasDetectedSpeech();
+            boolean hadSpeechInSession = speechDetectedInSession || hasSpeech;
+            Log.d(TAG, "Stopped recorder, audioBytes=" + audioBytes.length
+                    + ", durationMs=" + durationMs
+                    + ", hasSpeech=" + hasSpeech
+                    + ", clientReady=" + realtimeSpeechClient.isReady());
+            if (audioBytes.length == 0) {
+                cleanupRecognitionSession(true);
+                transitionTo(SessionState.IDLE, "empty audio");
+                updateStatus(getString(R.string.error_audio));
+                preserveIdleStatusMessage = true;
+                refreshUi();
+                return;
             }
-            preserveIdleStatusMessage = true;
-            refreshUi();
-            return;
+            if (durationMs < MIN_RECORDING_DURATION_MS || !hasSpeech) {
+                cleanupRecognitionSession(true);
+                transitionTo(SessionState.IDLE, "audio too short or no speech");
+                if (reason == StopReason.SILENCE_TIMEOUT) {
+                    updateStatus(getString(
+                            hadSpeechInSession
+                                    ? R.string.error_speech_timeout
+                                    : R.string.error_no_voice_detected
+                    ));
+                } else {
+                    updateStatus(getString(R.string.error_recording_too_short));
+                }
+                preserveIdleStatusMessage = true;
+                refreshUi();
+                return;
+            }
         }
 
-        BaiduRealtimeSpeechClient client = realtimeSpeechClient;
+        SpeechRecognitionClient client = realtimeSpeechClient;
         if (client == null) {
             transitionTo(SessionState.IDLE, "missing realtime client");
             updateStatus(getString(R.string.error_client));
@@ -356,12 +364,10 @@ public class VoiceInputMethodService extends InputMethodService {
         mainHandler.postDelayed(finishTimeoutRunnable, FINISH_TIMEOUT_MS);
     }
 
-    private BaiduRealtimeSpeechClient createRealtimeClient() {
-        return new BaiduRealtimeSpeechClient(
-                BuildConfig.BAIDU_APP_ID,
-                BuildConfig.BAIDU_API_KEY,
-                getPackageName(),
-                new BaiduRealtimeSpeechClient.Listener() {
+    private SpeechRecognitionClient createRealtimeClient() {
+        return new AliyunRealtimeSpeechClient(
+                BuildConfig.ALIYUN_APP_KEY,
+                new SpeechRecognitionClient.Listener() {
                     @Override
                     public void onReady() {
                         Log.d(TAG, "Realtime ASR websocket ready");
@@ -546,7 +552,7 @@ public class VoiceInputMethodService extends InputMethodService {
     }
 
     private void cleanupRecognitionSession(boolean resetUiFlags) {
-        BaiduRealtimeSpeechClient client = realtimeSpeechClient;
+        SpeechRecognitionClient client = realtimeSpeechClient;
         realtimeSpeechClient = null;
         if (client != null) {
             client.cancel();
@@ -630,7 +636,7 @@ public class VoiceInputMethodService extends InputMethodService {
             return;
         }
 
-        if (!hasBaiduConfig()) {
+        if (!hasSpeechConfig()) {
             tvImeStatus.setText(R.string.status_config_missing);
             return;
         }
@@ -641,8 +647,9 @@ public class VoiceInputMethodService extends InputMethodService {
         tvImeStatus.setText(R.string.status_ime_idle);
     }
 
-    private boolean hasBaiduConfig() {
-        return !BuildConfig.BAIDU_APP_ID.isEmpty() && !BuildConfig.BAIDU_API_KEY.isEmpty();
+    private boolean hasSpeechConfig() {
+        return !BuildConfig.ALIYUN_APP_KEY.isEmpty()
+                && !BuildConfig.ALIYUN_TOKEN_ENDPOINT.isEmpty();
     }
 
     private boolean hasRecordAudioPermission() {
