@@ -1,17 +1,42 @@
+# -----------------------------
+# Android Studio / IntelliJ
+# -----------------------------
 *.iml
-.gradle
-/local.properties
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/workspace.xml
+.idea/shelf/
+
+# -----------------------------
+# Gradle / Android build output
+# -----------------------------
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# -----------------------------
+# Local machine configuration
+# -----------------------------
 local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.idea
+
+# Optional local-only overrides.
+# Keep the tracked gradle.properties template, but ignore ad hoc local copies if created elsewhere.
+*.keystore
+*.jks
+
+# -----------------------------
+# Logs / debug artifacts
+# -----------------------------
+*.log
+log.txt
+
+# -----------------------------
+# OS files
+# -----------------------------
 .DS_Store
-/build
-app/build
-/captures
-.externalNativeBuild
-.cxx
+Thumbs.db

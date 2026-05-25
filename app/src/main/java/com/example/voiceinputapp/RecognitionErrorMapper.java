@@ -10,6 +10,9 @@ final class RecognitionErrorMapper {
         if (message.contains("network") || message.contains("timeout")) {
             return R.string.error_network;
         }
+        if (message.contains("gateway") || message.contains("websocket failure")) {
+            return R.string.error_network;
+        }
         if (message.contains("not find effective speech")
                 || message.contains("info:-4")
                 || message.contains("speech quality error")
@@ -18,6 +21,8 @@ final class RecognitionErrorMapper {
             return R.string.error_speech_timeout;
         }
         if (message.contains("access_token")
+                || message.contains("token")
+                || message.contains("appkey")
                 || message.contains("api key")
                 || message.contains("secret")) {
             return R.string.status_config_missing;

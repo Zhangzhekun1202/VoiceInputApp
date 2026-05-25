@@ -2,9 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-def baiduAppId = providers.gradleProperty("BAIDU_APP_ID").orElse("").get()
-def baiduApiKey = providers.gradleProperty("BAIDU_API_KEY").orElse("").get()
-def baiduSecretKey = providers.gradleProperty("BAIDU_SECRET_KEY").orElse("").get()
+def aliyunAppKey = providers.gradleProperty("ALIYUN_APP_KEY").orElse("").get()
+def aliyunTokenEndpoint = providers.gradleProperty("ALIYUN_TOKEN_ENDPOINT").orElse("").get()
 
 android {
     namespace 'com.example.voiceinputapp'
@@ -20,9 +19,8 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0"
-        buildConfigField "String", "BAIDU_APP_ID", "\"${baiduAppId}\""
-        buildConfigField "String", "BAIDU_API_KEY", "\"${baiduApiKey}\""
-        buildConfigField "String", "BAIDU_SECRET_KEY", "\"${baiduSecretKey}\""
+        buildConfigField "String", "ALIYUN_APP_KEY", "\"${aliyunAppKey}\""
+        buildConfigField "String", "ALIYUN_TOKEN_ENDPOINT", "\"${aliyunTokenEndpoint}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
